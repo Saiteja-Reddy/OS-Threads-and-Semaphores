@@ -2,6 +2,10 @@
 #include<unistd.h>
 #include<pthread.h>
 #include <stdlib.h>
+#include <semaphore.h>
+
+// sem_t pump;
+sem_t pump;
 
 void *car(void *arg);
 void *attender(void *arg);
@@ -38,35 +42,39 @@ int main()
 	pthread_t a_tid[3];
 
 	struct passParamsAttender *a_params[3];
-	for (i = 0; i < 3; ++i)
-	{
-		a_params[i] = malloc(sizeof(struct passParamsAttender));
-		a_params[i]->num = i+1;
-		// printf("%d\n", a_params[i]->num );
-    	pthread_create(&a_tid[i], NULL, attender, a_params[i]);
-	}
-
-	for (i = 0; i < 3; ++i)
-	{
-    	pthread_join(a_tid[i], NULL);
-	}
-
-
-	// struct passParamsCar *params[no];
-
-	// for (i = 0; i < no; ++i)
+	// for (i = 0; i < 3; ++i)
 	// {
-	// 	params[i] = malloc(sizeof(struct passParamsCar));
-	// 	params[i]->time = rand()%3;
-	// 	params[i]->num = i+1;
-	// 	//printf("%d %d\n", params[i]->num, params[i]->time );
- //    	pthread_create(&tid[i], NULL, car, params[i]);
+	// 	a_params[i] = malloc(sizeof(struct passParamsAttender));
+	// 	a_params[i]->num = i+1;
+	// 	// printf("%d\n", a_params[i]->num );
+ //    	pthread_create(&a_tid[i], NULL, attender, a_params[i]);
 	// }
 
-	// for (i = 0; i < no; ++i)
+	// for (i = 0; i < 3; ++i)
 	// {
- //    	pthread_join(tid[i], NULL);
+ //    	pthread_join(a_tid[i], NULL);
 	// }
+
+
+	struct passParamsCar *params[no];
+
+    sem_init(&pump,0, 3);
+    int time = 0;
+	for (i = 0; i < no; ++i)
+	{
+		params[i] = malloc(sizeof(struct passParamsCar));
+		time = time + rand()%3;
+		params[i]->time = time;
+		params[i]->num = i+1;
+		printf("%d\n", time);
+		//printf("%d %d\n", params[i]->num, params[i]->time );
+    	pthread_create(&tid[i], NULL, car, params[i]);
+	}
+
+	for (i = 0; i < no; ++i)
+	{
+    	pthread_join(tid[i], NULL);
+	}
 
 	return 0;
 }
@@ -77,11 +85,12 @@ void *car(void *arg)
 	int num = params->num;
 	int stime = params->time;
 
+
 	enterStation(num, stime);
-	waitInLine(num);
-	goToPump(num);
-	pay(num);
-	exitStation(num);
+	// waitInLine(num);
+	// goToPump(num);
+	// pay(num);
+	// exitStation(num);
 	printf("\n");
 }
 
@@ -109,7 +118,21 @@ void acceptPayment(int num)
 
 void enterStation(int num, int stime)
 {
-	printf("Car %d - has entered station, after sleep %d\n", num, stime);
+	sleep(stime);
+	int *cars = malloc(sizeof(int));
+	sem_getvalue(&pump, cars);
+	int free_slots = *cars;
+	printf("Already Cars = %d\n", free_slots);
+	if(free_slots == 0)
+		printf("Car %d - has left station - line full\n", num);
+	else
+	{
+    	sem_wait(&pump);
+		printf("Car %d - has entered station, after sleep %d\n", num, stime);
+		sleep(3);
+    	sem_post(&pump);
+    	printf("Done - car %d\n", num);
+	}
 }
 
 void waitInLine(int num)
