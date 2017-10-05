@@ -21,7 +21,6 @@ int main() {
 
     // Wait for thread to finish
     pthread_join(tid, NULL);
-        
     return 0;
 }
 
