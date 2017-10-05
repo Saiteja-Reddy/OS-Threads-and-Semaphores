@@ -97,11 +97,13 @@ void *attender(void* arg)
 
 void serveCar(int num)
 {
+	// Use sleep 1
 	printf("Attender %d - is serving car no - \n", num);
 }
 
 void acceptPayment(int num)
 {
+	// Use sleep 0.1 - and through one ATM only
 	printf("Attender %d - is accepting payment from car no - \n", num);
 }
 
