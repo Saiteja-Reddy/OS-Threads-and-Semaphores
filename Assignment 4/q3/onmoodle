@@ -1,0 +1,59 @@
+Assignment 4
+For Problem 2:
+
+You may print statements in the following cases
+
+1) When a particular voter is allotted a slot in an EVM
+
+2) When an EVM is done with voting phase
+
+3) When it is free and starts waiting for the slots to be filled
+
+4) When all the voters are done
+
+
+
+Sample Scenario:
+
+Assume Input will be given in the following format 
+
+Line 1 :- n = Number of booths 
+
+Line 2..(n+1) :- each having two numbers 
+
+Number_of_voters  Number_of_EVMs 
+
+
+
+Input:- (Assuming maximum number of slots of EVMs in booth 1 is 1 and that of EVMs in booth 2 is 2)
+
+2
+2 2
+5 2
+
+Output:- 
+
+EVM 1 at Booth 1 is free with slots = 1.
+Voter 2 at Booth 1 got allocated EVM 1.
+EVM2 at Booth 2 is free with slots = 2.
+EVM1 at Booth 1 is moving for voting stage.
+Voter 1 at Booth 2 got allocated EVM 2.
+Voter 3 at Booth 2 got allocated EVM 2.
+EVM 2 at Booth 2 is moving for voting stage.
+EVM 1 at Booth 2 is free with slots = 1.
+EVM 2 at Booth 1 is free with slots = 1.
+Voter 2 at Booth 2 got allocated EVM 1.
+Voter 1 at Booth 1 got allocated EVM 2.
+EVM 1 at Booth 1 finished Voting phase.
+EVM 2 at Booth 1 is moving for voting stage.
+EVM 2 at Booth 2 finished Voting phase.
+EVM 1 at Booth 2 is moving for voting stage.
+EVM 2 at Booth 2 is free with slots = 2.
+Voter 5 at Booth 2 got allocated EVM 2.
+Voter 4 at Booth 2 got allocated EVM 2.
+EVM 2 at Booth 1 finished Voting phase.
+Voters at Booth 1 are done with voting.
+EVM 1 at Booth 2 finished Voting phase.
+EVM 2 at Booth 2 is moving for voting stage.
+EVM 2 at Booth 2 is done with voting stage.
+Voters at EVM 2 are done with voting.
