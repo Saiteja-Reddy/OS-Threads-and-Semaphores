@@ -3,6 +3,13 @@
 #include<pthread.h>
 #include <stdlib.h>
 #include <semaphore.h>
+#include<sys/shm.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+#include<sys/ipc.h>
+
+#define SHMSIZE 4
+key_t key = IPC_PRIVATE; /* This is needed */
 
 sem_t pump;
 sem_t waiting;
@@ -10,8 +17,8 @@ sem_t waiting;
 void *car(void *arg);
 void *attender(void *arg);
 int enterStation(int, int);
-void waitInLine(int);
-void goToPump(int);
+int waitInLine(int);
+void goToPump(int, int);
 void pay(int);
 void exitStation(int);
 void serveCar(int);
@@ -26,8 +33,38 @@ struct passParamsAttender {
     int num;                                                              
 };
 
+int *pumps_array;
+int *atts_array;
+
 int main()
 {
+
+	int shmid, shmid1, i,status;
+	shmid = shmget(key, sizeof(int) *SHMSIZE, IPC_CREAT| 0666);
+	if(shmid == -1) {
+		perror("Shmget failed");
+		exit(1);
+	}
+	shmid1 = shmget(key, sizeof(int) *SHMSIZE, IPC_CREAT| 0666);
+	if(shmid1 == -1) {
+		perror("Shmget failed");
+		exit(1);
+	}	
+	pumps_array = shmat(shmid, 0, 0);
+	if(pumps_array == (void *)-1) {
+		perror("Shmat failed");
+		exit(1);
+	}
+	atts_array = shmat(shmid1, 0, 0);
+	if(atts_array == (void *)-1) {
+		perror("Shmat failed");
+		exit(1);
+	}	
+	for(i = 0; i < SHMSIZE; i++) {
+		pumps_array[i] = 0;
+		atts_array[i] = 0;
+	}	
+
 	int no;
 	printf("Enter number of cars: ");
 	scanf("%d", &no);
@@ -35,7 +72,6 @@ int main()
     
 	time_t t;
 	srand((unsigned) time(&t));
-	int i;
 	
 	pthread_t tid[no];
 
@@ -94,8 +130,8 @@ void *car(void *arg)
 		exitStation(num);
 	else
 	{
-		waitInLine(num);
-		goToPump(num);
+		int pnum = waitInLine(num);
+		goToPump(num, pnum);
 		// pay(num);
 		// exitStation(num);
 
@@ -145,32 +181,51 @@ int enterStation(int num, int stime)
 	}
 }
 
-void waitInLine(int num)
+int waitInLine(int num)
 {
 	int *pumps = malloc(sizeof(int));
 	sem_getvalue(&pump, pumps);	
 	int free_pumps = *pumps;
-
+	int i;
 	printf("No. of free pumps = %d\n", free_pumps);
 	if(free_pumps == 0) // Then Wait until pump free
 	{
     	sem_wait(&waiting);
 		printf("Car %d - is waiting in line at no - \n", num);
 		sem_wait(&pump);
+		for (i = 1; i <= 3; ++i)
+		{
+			if(pumps_array[i] == 0)
+			{
+				pumps_array[i] = 1;
+				break;
+			}
+		}
     	sem_post(&waiting);
+    	return i;
 	}
 	else // pumps are already free to go
 	{
 		sem_wait(&pump);
+		for (i = 1; i <= 3; ++i)
+		{
+			if(pumps_array[i] == 0)
+			{
+				pumps_array[i] = 1;
+				break;
+			}
+		}	
+		return i;	
 	}
 }
 
-void goToPump(int num)
+void goToPump(int num, int pumpnum)
 {
-	printf("Car %d - is going to Pump no - \n", num);
+	printf("Car %d - is going to Pump no - %d \n", num, pumpnum);
 	sleep(3);
 	printf("Car %d - is exiting the station\n", num);
     sem_post(&pump);
+    pumps_array[pumpnum] = 0;
 }
 
 void pay(int num)
