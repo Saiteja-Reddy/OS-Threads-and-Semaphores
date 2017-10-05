@@ -25,7 +25,7 @@ int enterStation(int, int);
 int waitInLine(int);
 void goToPump(int, int);
 void pay(int);
-void exitStation(int, int);
+void exitStation(int);
 void serveCar(int);
 void acceptPayment(int);
 
@@ -41,11 +41,12 @@ struct passParamsAttender {
 int *pumps_array;
 int *atts_array;
 int *pays_array;
+int *waiting_array;
 
 int main()
 {
 
-	int shmid, shmid1, shmid2, i,status;
+	int shmid, shmid1, shmid2, shmid3, i,status;
 	shmid = shmget(key, sizeof(int) *SHMSIZE, IPC_CREAT| 0666);
 	if(shmid == -1) {
 		perror("Shmget failed");
@@ -61,6 +62,11 @@ int main()
 		perror("Shmget failed");
 		exit(1);
 	}		
+	shmid3 = shmget(key, sizeof(int) *SHMSIZE, IPC_CREAT| 0666);
+	if(shmid3 == -1) {
+		perror("Shmget failed");
+		exit(1);
+	}	
 	pumps_array = shmat(shmid, 0, 0);
 	if(pumps_array == (void *)-1) {
 		perror("Shmat failed");
@@ -76,10 +82,16 @@ int main()
 		perror("Shmat failed");
 		exit(1);
 	}		
+	waiting_array = shmat(shmid3, 0, 0);
+	if(waiting_array == (void *)-1) {
+		perror("Shmat failed");
+		exit(1);
+	}			
 	for(i = 0; i < SHMSIZE; i++) {
 		pumps_array[i] = 0;
 		atts_array[i] = 0;
 		pays_array[i] = 0;
+		waiting_array[i] = 0;
     	pthread_mutex_init(&mutex[i], NULL);
     	pthread_mutex_init(&mutex_p[i], NULL);
     	pthread_cond_init(&cond[i], NULL);		
@@ -147,13 +159,13 @@ void *car(void *arg)
 
 	int out = enterStation(num, stime);
 	if(out == 0)
-		exitStation(num, 0);
+		exitStation(num);
 	else
 	{
 		int pnum = waitInLine(num);
 		goToPump(num, pnum);
 		pay(num);
-		exitStation(num, pnum);
+		exitStation(num);
 
 	}
 	printf("\n");
@@ -192,11 +204,14 @@ void acceptPayment(int num)
 {
 	// Use sleep 0.1 - and through one ATM only
 	atts_array[num] = 2;
+	waiting_array[0] = 1;
 	printf("Attender %d - is accepting payment from a car\n", num);
 	sleep(1);
     pthread_cond_signal(&cond_p[num]);
 	atts_array[num] = 0;
 	pays_array[num] = 0;
+	waiting_array[0] = 0;
+	printf("Payment Done - Attender %d  \n" , num);
 }
 
 int enterStation(int num, int stime)
@@ -274,29 +289,33 @@ void goToPump(int num, int pumpnum)
 void pay(int num)
 {
 	int i;
-	i = 0;
+	i = 1;
+	printf("Car %d - is waiting for paying\n", num);
+
 	while(atts_array[i] != 2 && pays_array[i] == 0)
 	{
 		for (i = 1; i <= 3; ++i)
 		{
-			if(atts_array[i] == 0)
+			if(atts_array[i] == 0 && pays_array[i] == 0 )
 			{
 				atts_array[i] = 2;
 				pays_array[i] = 1;
-				break;
+				if(waiting_array[0] == 0)
+					break;
 			}
 		}
 	}
+
     pthread_mutex_lock(&mutex_p[i]);
 
-	printf("Car %d - is waiting for paying to attender %d- \n", num, i);
+	printf("Car %d - is paying to attender %d- \n", num, i);
     pthread_cond_wait(&cond_p[i], &mutex_p[i]);
-	pays_array[i] = 0;
+	// pays_array[i] = 0;
     pthread_mutex_unlock(&mutex_p[i]);
 
 }
 
-void exitStation(int num, int pumpnum)
+void exitStation(int num)
 {
-	printf("Car %d - is exiting the station at pump %d\n", num, pumpnum);
+	printf("Car %d - is exiting the station\n", num);
 }
