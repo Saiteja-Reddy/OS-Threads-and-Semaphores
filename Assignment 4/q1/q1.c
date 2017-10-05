@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <semaphore.h>
 
-// sem_t pump;
 sem_t pump;
+sem_t waiting;
 
 void *car(void *arg);
 void *attender(void *arg);
-void enterStation(int, int);
+int enterStation(int, int);
 void waitInLine(int);
 void goToPump(int);
 void pay(int);
@@ -59,6 +59,9 @@ int main()
 	struct passParamsCar *params[no];
 
     sem_init(&pump,0, 3);
+    sem_init(&waiting,0, 4);
+
+
     int time = 0;
 	for (i = 0; i < no; ++i)
 	{
@@ -86,11 +89,17 @@ void *car(void *arg)
 	int stime = params->time;
 
 
-	enterStation(num, stime);
-	// waitInLine(num);
-	// goToPump(num);
-	// pay(num);
-	// exitStation(num);
+	int out = enterStation(num, stime);
+	if(out == 0)
+		exitStation(num);
+	else
+	{
+		waitInLine(num);
+		goToPump(num);
+		// pay(num);
+		// exitStation(num);
+
+	}
 	printf("\n");
 }
 
@@ -116,33 +125,52 @@ void acceptPayment(int num)
 	printf("Attender %d - is accepting payment from car no - \n", num);
 }
 
-void enterStation(int num, int stime)
+int enterStation(int num, int stime)
 {
 	sleep(stime);
 	int *cars = malloc(sizeof(int));
-	sem_getvalue(&pump, cars);
+	sem_getvalue(&waiting, cars);
 	int free_slots = *cars;
-	printf("Already Cars = %d\n", free_slots);
+
+	printf("No. of waiting slots = %d\n", free_slots);
 	if(free_slots == 0)
-		printf("Car %d - has left station - line full\n", num);
+	{
+		printf("Car %d - has left station - waiting line full\n", num);
+		return 0;
+	}
 	else
 	{
-    	sem_wait(&pump);
-		printf("Car %d - has entered station, after sleep %d\n", num, stime);
-		sleep(3);
-    	sem_post(&pump);
-    	printf("Done - car %d\n", num);
+		printf("Car %d - has entered station, at time %d\n", num, stime);
+    	return 1;
 	}
 }
 
 void waitInLine(int num)
 {
-	printf("Car %d - is waiting in line at no - \n", num);
+	int *pumps = malloc(sizeof(int));
+	sem_getvalue(&pump, pumps);	
+	int free_pumps = *pumps;
+
+	printf("No. of free pumps = %d\n", free_pumps);
+	if(free_pumps == 0) // Then Wait until pump free
+	{
+    	sem_wait(&waiting);
+		printf("Car %d - is waiting in line at no - \n", num);
+		sem_wait(&pump);
+    	sem_post(&waiting);
+	}
+	else // pumps are already free to go
+	{
+		sem_wait(&pump);
+	}
 }
 
 void goToPump(int num)
 {
 	printf("Car %d - is going to Pump no - \n", num);
+	sleep(3);
+	printf("Car %d - is exiting the station\n", num);
+    sem_post(&pump);
 }
 
 void pay(int num)
