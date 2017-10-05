@@ -15,6 +15,7 @@ sem_t pump;
 sem_t waiting;
 
 pthread_mutex_t mutex[4];
+pthread_mutex_t mutex_wait;
 pthread_mutex_t mutex_p[4];
 pthread_cond_t cond[4];
 pthread_cond_t cond_p[4];
@@ -124,6 +125,7 @@ int main()
 
     sem_init(&pump,0, 3);
     sem_init(&waiting,0, 4);
+    pthread_mutex_init(&mutex_wait, NULL);
 
 
     int time = 0;
@@ -168,7 +170,7 @@ void *car(void *arg)
 		exitStation(num);
 
 	}
-	printf("\n");
+	// printf("\n");
 }
 
 void *attender(void* arg)
@@ -184,6 +186,7 @@ void *attender(void* arg)
 		}
 		if(pays_array[num] != 0 && atts_array[num] == 2)
 		{
+			waiting_array[0] = 1;
 			acceptPayment(num);
 		}
 	}
@@ -194,8 +197,10 @@ void serveCar(int num)
 	// Use sleep 1
 	atts_array[num] = 1;
 	printf("Attender %d - is serving at pump - \n", num);
-	sleep(3);
+	sleep(1);
+	printf(" ");
     pthread_cond_signal(&cond[num]);
+	printf(" ");
 	atts_array[num] = 0;
 	pumps_array[num] = 0;
 }
@@ -203,15 +208,14 @@ void serveCar(int num)
 void acceptPayment(int num)
 {
 	// Use sleep 0.1 - and through one ATM only
-	atts_array[num] = 2;
 	waiting_array[0] = 1;
-	printf("Attender %d - is accepting payment from a car\n", num);
-	sleep(1);
+	atts_array[num] = 2;
+	// printf("Attender %d - is accepting payment from a car\n", num);
+	sleep(0.5);
     pthread_cond_signal(&cond_p[num]);
 	atts_array[num] = 0;
 	pays_array[num] = 0;
 	waiting_array[0] = 0;
-	printf("Payment Done - Attender %d  \n" , num);
 }
 
 int enterStation(int num, int stime)
@@ -221,7 +225,7 @@ int enterStation(int num, int stime)
 	sem_getvalue(&waiting, cars);
 	int free_slots = *cars;
 
-	printf("No. of waiting slots = %d\n", free_slots);
+	// printf("No. of waiting slots = %d\n", free_slots);
 	if(free_slots == 0)
 	{
 		printf("Car %d - has left station - waiting line full\n", num);
@@ -240,11 +244,11 @@ int waitInLine(int num)
 	sem_getvalue(&pump, pumps);	
 	int free_pumps = *pumps;
 	int i;
-	printf("No. of free pumps = %d\n", free_pumps);
+	// printf("No. of free pumps = %d\n", free_pumps);
 	if(free_pumps == 0) // Then Wait until pump free
 	{
     	sem_wait(&waiting);
-		printf("Car %d - is waiting in line at no - \n", num);
+		printf("Car %d - is waiting in line \n", num);
 		sem_wait(&pump);
 		for (i = 1; i <= 3; ++i)
 		{
@@ -259,6 +263,7 @@ int waitInLine(int num)
 	}
 	else // pumps are already free to go
 	{
+		printf("No waiting for car , a pump is free!\n");
 		sem_wait(&pump);
 		for (i = 1; i <= 3; ++i)
 		{
@@ -290,7 +295,8 @@ void pay(int num)
 {
 	int i;
 	i = 1;
-	printf("Car %d - is waiting for paying\n", num);
+	// printf("Car %d - is waiting for paying\n", num);
+	pthread_mutex_lock(&mutex_wait);
 
 	while(atts_array[i] != 2 && pays_array[i] == 0)
 	{
@@ -301,17 +307,34 @@ void pay(int num)
 				atts_array[i] = 2;
 				pays_array[i] = 1;
 				if(waiting_array[0] == 0)
-					break;
+				{
+					waiting_array[0] = 1;
+					break;			
+				}
 			}
 		}
 	}
 
+	printf("Car %d - is paying to attender %d- \n", num, i);
+
     pthread_mutex_lock(&mutex_p[i]);
 
-	printf("Car %d - is paying to attender %d- \n", num, i);
+    waiting_array[0] = 1;
+	atts_array[i] = 2;
+	pays_array[i] = 1;    
+
     pthread_cond_wait(&cond_p[i], &mutex_p[i]);
+
+    waiting_array[0] = 0;
+	atts_array[i] = 0;
+	pays_array[i] = 0; 
+
 	// pays_array[i] = 0;
+	printf("Payment Done Car %d - Attender %d  \n" ,num, i);
+
     pthread_mutex_unlock(&mutex_p[i]);
+	
+	pthread_mutex_unlock(&mutex_wait);
 
 }
 
