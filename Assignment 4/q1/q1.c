@@ -14,6 +14,9 @@ key_t key = IPC_PRIVATE; /* This is needed */
 sem_t pump;
 sem_t waiting;
 
+pthread_mutex_t mutex[4];
+pthread_cond_t cond[4];
+
 void *car(void *arg);
 void *attender(void *arg);
 int enterStation(int, int);
@@ -63,6 +66,8 @@ int main()
 	for(i = 0; i < SHMSIZE; i++) {
 		pumps_array[i] = 0;
 		atts_array[i] = 0;
+    	pthread_mutex_init(&mutex[i], NULL);
+    	pthread_cond_init(&cond[i], NULL);		
 	}	
 
 	int no;
@@ -78,18 +83,13 @@ int main()
 	pthread_t a_tid[3];
 
 	struct passParamsAttender *a_params[3];
-	// for (i = 0; i < 3; ++i)
-	// {
-	// 	a_params[i] = malloc(sizeof(struct passParamsAttender));
-	// 	a_params[i]->num = i+1;
-	// 	// printf("%d\n", a_params[i]->num );
- //    	pthread_create(&a_tid[i], NULL, attender, a_params[i]);
-	// }
-
-	// for (i = 0; i < 3; ++i)
-	// {
- //    	pthread_join(a_tid[i], NULL);
-	// }
+	for (i = 0; i < 3; ++i)
+	{
+		a_params[i] = malloc(sizeof(struct passParamsAttender));
+		a_params[i]->num = i+1;
+		// printf("%d\n", a_params[i]->num );
+    	pthread_create(&a_tid[i], NULL, attender, a_params[i]);
+	}
 
 
 	struct passParamsCar *params[no];
@@ -113,6 +113,10 @@ int main()
 	for (i = 0; i < no; ++i)
 	{
     	pthread_join(tid[i], NULL);
+	}
+	for (i = 0; i < 3; ++i)
+	{
+    	pthread_join(a_tid[i], NULL);
 	}
 
 	return 0;
@@ -144,15 +148,25 @@ void *attender(void* arg)
 	struct passParamsAttender *params = arg;
 	int num = params->num;
 
-	serveCar(num);
-	acceptPayment(num);
-	printf("\n");
+	while(1)
+	{
+		if(pumps_array[num] == 1)
+		{
+			serveCar(num);
+			printf("\n");
+		}
+		// acceptPayment(num);
+	}
 }
 
 void serveCar(int num)
 {
 	// Use sleep 1
-	printf("Attender %d - is serving car no - \n", num);
+	atts_array[num] = 1;
+	printf("Attender %d - is serving at pump - \n", num);
+	sleep(1);
+    pthread_cond_signal(&cond[num]);
+	atts_array[num] = 0;
 }
 
 void acceptPayment(int num)
@@ -221,11 +235,17 @@ int waitInLine(int num)
 
 void goToPump(int num, int pumpnum)
 {
+    pthread_mutex_lock(&mutex[pumpnum]);
+
 	printf("Car %d - is going to Pump no - %d \n", num, pumpnum);
-	sleep(3);
-	printf("Car %d - is exiting the station\n", num);
+
+    pthread_cond_wait(&cond[pumpnum], &mutex[pumpnum]);
+
+	printf("Car %d - is exiting the station at pump %d\n", num, pumpnum);
     sem_post(&pump);
     pumps_array[pumpnum] = 0;
+
+    pthread_mutex_unlock(&mutex[pumpnum]);
 }
 
 void pay(int num)
