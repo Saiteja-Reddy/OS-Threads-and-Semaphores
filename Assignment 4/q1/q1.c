@@ -44,6 +44,8 @@ int *atts_array;
 int *pays_array;
 int *waiting_array;
 
+int num_of_cars;
+
 int main()
 {
 
@@ -88,6 +90,8 @@ int main()
 		perror("Shmat failed");
 		exit(1);
 	}			
+
+	
 	for(i = 0; i < SHMSIZE; i++) {
 		pumps_array[i] = 0;
 		atts_array[i] = 0;
@@ -102,6 +106,7 @@ int main()
 	int no;
 	printf("Enter number of cars: ");
 	scanf("%d", &no);
+	num_of_cars = no;
 	printf("Number of cars inputed - %d\n\n", no );
     
 	time_t t;
@@ -178,7 +183,7 @@ void *attender(void* arg)
 	struct passParamsAttender *params = arg;
 	int num = params->num;
 
-	while(1)
+	while(num_of_cars)
 	{
 		if(pumps_array[num] == 1 && atts_array[num] == 0)
 		{
@@ -341,4 +346,5 @@ void pay(int num)
 void exitStation(int num)
 {
 	printf("Car %d - is exiting the station\n", num);
+	num_of_cars--;
 }
