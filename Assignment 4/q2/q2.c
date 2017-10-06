@@ -80,11 +80,13 @@ int main()
 void *evm(void* arg)
 {
 	booth* B = (booth*)arg;
+	while(B->voter_it < B->voters);
 	int e_id = (*B).evm_it++;
-	int count = 2;
+	int count = (rand()%10) + 1;
 	// printf("This is evm no. %d of %d Booth \n", e_id + 1, B->id);
 	while((*B).voters > 0)
 	{
+		count = (rand()%10) + 1;
 		polling_ready_evm(B, e_id+1, count);
 	}
 }
@@ -97,10 +99,16 @@ void *voter(void* arg)
 	voter_wait_for_evm(B, v_id+1);
 }
 
+void voter_in_slot(booth* B, int v_id)
+{
+	printf("Voter %d at Booth %d got allocated EVM %d\n", v_id, B->id, B->evm_ready);
+}
+
 void voter_wait_for_evm(booth* B, int v_id)
 {
 	pthread_cond_wait(&(B->cond), &(B->mutex_wait));
-	printf("Voter %d at Booth %d got allocated EVM %d\n", v_id, B->id, B->evm_ready);
+	// printf("Voter %d at Booth %d got allocated EVM %d\n", v_id, B->id, B->evm_ready);
+	voter_in_slot(B, v_id);
 	pthread_mutex_unlock(&(B->mutex_wait));
 	return;
 }
@@ -130,8 +138,8 @@ void polling_ready_evm(booth* B, int e_id, int slots)
 		pthread_cond_signal(&(B->cond));
 		sleep(0.1);
 	}
-	pthread_mutex_unlock(&(B->mutex));
 	printf("EVM %d at Booth %d is moving for voting stage\n", e_id, B->id);
+	pthread_mutex_unlock(&(B->mutex));
 	sleep(0.1);
 	printf("EVM %d at Booth %d finished voting phase\n", e_id, B->id);
 	if(B->voters == 0)
