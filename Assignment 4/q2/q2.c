@@ -22,9 +22,12 @@ void *voter(void*);
 void voter_wait_for_evm(booth*, int);
 void polling_ready_evm(booth*, int , int);
 
+#define RED   "\x1B[31m"
+#define RESET "\x1B[0m"
 
-void booth_init(booth* B)
+void *booth_init(void* arg)
 {
+	booth* B = (booth*)arg;
     pthread_mutex_init(&(B->mutex), NULL);
     pthread_mutex_init(&(B->mutex_wait), NULL);
     pthread_cond_init(&(B->cond), NULL);
@@ -38,11 +41,7 @@ void booth_init(booth* B)
     for (i = 0; i < B->evms; ++i)
     	pthread_create(&tid, NULL, evm, B);
 
-    sleep(1);   
-
-	if(B->voters == 0)
-		printf("Voters at Booth %d are done with voting\n", B->id);
-
+    sleep(1);
 }
 
 int main()
@@ -51,20 +50,30 @@ int main()
 	int i;
 	srand((unsigned) time(&t));
 
-	// int bos;
-	// scanf("Enter no of Booths - %d", bos);
-	int voters;
-	struct Booth* B = malloc(sizeof(struct Booth));
-	printf("Enter no of voters -");
-	scanf("%d", &voters);
+	int bos;
+	printf("Enter no of Booths - ");
+	scanf("%d", &bos);
+	struct Booth* B[bos];
 	int evms;
-	printf("Enter no of evms - ");
-	scanf("%d", &evms);
-	B->voters = voters;
-	B->evms = evms;
-	B->id = 1;
-	B->final = 0;
-	booth_init(B);
+	int voters;
+	for (i = 0; i < bos; ++i)
+	{
+		B[i] = malloc(sizeof(struct Booth));
+		// printf("Enter no of voters -");
+		scanf("%d", &voters);
+		// printf("Enter no of evms - ");
+		scanf("%d", &evms);
+		B[i]->voters = voters;
+		B[i]->evms = evms;
+		B[i]->id = i+1;
+		B[i]->final = 0;
+	}
+    pthread_t tid;
+	for (i = 0; i < bos; ++i)
+	{
+		pthread_create( &tid, NULL, booth_init , B[i]);
+	}
+	pthread_exit(NULL);
 	return 0;
 }
 
@@ -91,7 +100,7 @@ void *voter(void* arg)
 void voter_wait_for_evm(booth* B, int v_id)
 {
 	pthread_cond_wait(&(B->cond), &(B->mutex_wait));
-	printf("Voter %d at booth %d got allocated EVM %d\n", v_id, B->id, B->evm_ready);
+	printf("Voter %d at Booth %d got allocated EVM %d\n", v_id, B->id, B->evm_ready);
 	pthread_mutex_unlock(&(B->mutex_wait));
 	return;
 }
@@ -124,7 +133,9 @@ void polling_ready_evm(booth* B, int e_id, int slots)
 	pthread_mutex_unlock(&(B->mutex));
 	printf("EVM %d at Booth %d is moving for voting stage\n", e_id, B->id);
 	sleep(0.1);
-	printf("EVM %d finished voting phase\n", e_id);
+	printf("EVM %d at Booth %d finished voting phase\n", e_id, B->id);
+	if(B->voters == 0)
+		printf(RED "Voters at Booth %d are done with voting\n" RESET, B->id);
 	return;
 }
 
